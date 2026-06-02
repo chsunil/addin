@@ -1,0 +1,7 @@
+config.js
+manifest.xml
+package-lock.json
+package.json
+pigeon-icon.png
+.node_modules
+.claude
