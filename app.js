@@ -34,24 +34,11 @@ Office.onReady(function(info) {
   }
 });
 
-// ── Load credentials from CRM server at runtime ──
-async function loadConfig() {
-  const resp = await fetch(CRM_BASE + "/addin/config.js");
-  if (!resp.ok) throw new Error("Config load failed: " + resp.status);
-  const text = await resp.text();
-  eval(text);
-}
-
 async function init() {
   try {
-    showLoading("Loading...");
-
-    // 1. Load credentials from CRM server
-    await loadConfig();
-
     showLoading("Looking up contact...");
 
-    // 2. Get sender email
+    // 1. Get sender email
     const item = Office.context.mailbox.item;
     senderEmail = item.from ? item.from.emailAddress : (item.sender ? item.sender.emailAddress : null);
 
@@ -60,10 +47,10 @@ async function init() {
       return;
     }
 
-    // 3. Get OAuth token
+    // 2. Get OAuth token
     accessToken = await getToken();
 
-    // 4. Look up contact
+    // 3. Look up contact
     const contact = await findContact(senderEmail);
 
     if (!contact) {
