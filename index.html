@@ -24,13 +24,13 @@
 <body>
 
 <!-- Header -->
-<div class="header d-flex align-items-center gap-2">
+<!-- <div class="header d-flex align-items-center gap-2">
   <div>
     <div class="fw-semibold">Pigeon CRM</div>
     <small>SuiteCRM for Outlook</small>
   </div>
   <a class="crm-link ms-auto" href="https://crm.pigeon-tech.com" target="_blank">Open CRM ↗</a>
-</div>
+</div> -->
 
 <div class="p-3 d-flex flex-column gap-3">
 
@@ -86,32 +86,10 @@
   </div>
 
   <!-- ── NOT FOUND: Contact not in CRM ── -->
-  <div id="notFoundUI" style="display:none;" class="d-flex flex-column gap-3">
-
-    <div class="card border">
-      <div class="card-body py-2 px-3">
-        <div class="d-flex align-items-center gap-2">
-          <div class="avatar unknown" id="avatarNotFound">?</div>
-          <div class="flex-grow-1 overflow-hidden">
-            <div class="fw-semibold text-truncate text-muted">Unknown sender</div>
-            <div class="not-found-email" id="notFoundEmail">—</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="alert alert-warning py-2 mb-0" style="font-size:12px;">
-      This contact is not in SuiteCRM yet.
-    </div>
-
+  <div id="notFoundUI" style="display:none;" class="d-flex flex-column gap-2">
     <a class="btn btn-success w-100" id="createContactBtn" href="#" target="_blank">
       + Create Contact in CRM
     </a>
-
-    <div style="font-size:11px;color:#6c757d;text-align:center;">
-      Opens SuiteCRM with email pre-filled
-    </div>
-
   </div>
 
 </div>
