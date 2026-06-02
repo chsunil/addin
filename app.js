@@ -27,6 +27,15 @@ const TAG_LABELS = {
   deal_closed: "Deal Closed"
 };
 
+// ── Debug log ──
+function dbg(msg) {
+  const box = document.getElementById("debugBox");
+  if (!box) return;
+  box.style.display = "block";
+  box.textContent += "[" + new Date().toLocaleTimeString() + "] " + msg + "\n";
+  box.scrollTop = box.scrollHeight;
+}
+
 // ── Boot ──
 Office.onReady(function(info) {
   if (info.host === Office.HostType.Outlook) {
@@ -36,11 +45,13 @@ Office.onReady(function(info) {
 
 async function init() {
   try {
-    showLoading("Looking up contact...");
+    showLoading("Reading email...");
+    dbg("init start");
 
     // 1. Get sender email
     const item = Office.context.mailbox.item;
     senderEmail = item.from ? item.from.emailAddress : (item.sender ? item.sender.emailAddress : null);
+    dbg("sender: " + senderEmail);
 
     if (!senderEmail) {
       showError("Could not read sender email.");
@@ -48,10 +59,16 @@ async function init() {
     }
 
     // 2. Get OAuth token
+    showLoading("Authenticating...");
+    dbg("fetching token from: " + TOKEN_URL);
     accessToken = await getToken();
+    dbg("token ok");
 
     // 3. Look up contact
+    showLoading("Looking up contact...");
+    dbg("looking up: " + senderEmail);
     const contact = await findContact(senderEmail);
+    dbg("contact: " + (contact ? contact.id : "not found"));
 
     if (!contact) {
       showNotFound(senderEmail);
@@ -60,23 +77,29 @@ async function init() {
     }
 
   } catch (err) {
+    dbg("ERROR: " + err.message);
     showError("Error: " + err.message);
   }
 }
 
 // ── Get OAuth2 token ──
 async function getToken() {
-  const resp = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type:    "password",
-      client_id:     CLIENT_ID,
-      client_secret: window.CRM_CLIENT_SECRET,
-      username:      "admin",
-      password:      window.CRM_PASSWORD
-    })
-  });
+  let resp;
+  try {
+    resp = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type:    "password",
+        client_id:     CLIENT_ID,
+        client_secret: window.CRM_CLIENT_SECRET,
+        username:      "admin",
+        password:      window.CRM_PASSWORD
+      })
+    });
+  } catch(e) {
+    throw new Error("Auth fetch failed (CORS?): " + e.message);
+  }
   if (!resp.ok) throw new Error("Auth failed: " + resp.status);
   const data = await resp.json();
   if (!data.access_token) throw new Error("No token in response");
@@ -91,13 +114,18 @@ async function findContact(email) {
     "&fields[Contacts]=id,first_name,last_name,email1,account_name,title,lead_status_c" +
     "&page[size]=1";
 
-  const resp = await fetch(url, {
-    headers: {
-      "Authorization": "Bearer " + accessToken,
-      "Content-Type":  "application/vnd.api+json",
-      "Accept":        "application/vnd.api+json"
-    }
-  });
+  let resp;
+  try {
+    resp = await fetch(url, {
+      headers: {
+        "Authorization": "Bearer " + accessToken,
+        "Content-Type":  "application/vnd.api+json",
+        "Accept":        "application/vnd.api+json"
+      }
+    });
+  } catch(e) {
+    throw new Error("Contact fetch failed (CORS?): " + e.message);
+  }
   if (!resp.ok) throw new Error("Lookup failed: " + resp.status);
   const data = await resp.json();
   if (!data.data || data.data.length === 0) return null;
