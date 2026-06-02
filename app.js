@@ -172,7 +172,8 @@ function showContact(contact) {
 
   if (contact.leadStatus) {
     document.getElementById("currentTagBox").style.display = "flex";
-    document.getElementById("currentTagDot").style.background = tagColors[contact.leadStatus] || "#7b82a8";
+    const badgeClasses = { hot_lead:"bg-danger", warm_lead:"bg-warning text-dark", cold_lead:"bg-primary", deal_closed:"bg-success" };
+    document.getElementById("currentTagBadge").className = "badge " + (badgeClasses[contact.leadStatus] || "bg-secondary");
     document.getElementById("currentTagValue").textContent    = tagLabels[contact.leadStatus] || contact.leadStatus;
     const existing = document.querySelector('[data-tag="' + contact.leadStatus + '"]');
     if (existing) {
@@ -238,7 +239,8 @@ async function doSync() {
     const tagColors = { hot_lead:"#ef4444", warm_lead:"#f97316", cold_lead:"#3b82f6", deal_closed:"#22c55e" };
     const tagLabels = { hot_lead:"Hot Lead", warm_lead:"Warm Lead", cold_lead:"Cold Lead", deal_closed:"Deal Closed" };
     document.getElementById("currentTagBox").style.display    = "flex";
-    document.getElementById("currentTagDot").style.background = tagColors[selectedTag];
+    const badgeClasses2 = { hot_lead:"bg-danger", warm_lead:"bg-warning text-dark", cold_lead:"bg-primary", deal_closed:"bg-success" };
+    document.getElementById("currentTagBadge").className = "badge " + (badgeClasses2[selectedTag] || "bg-secondary");
     document.getElementById("currentTagValue").textContent    = tagLabels[selectedTag];
   } catch(err) {
     btn.className   = "sync-btn error-btn";
