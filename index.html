@@ -1,240 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SuiteCRM</title>
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Pigeon CRM</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;
+  --border:#2e3248;--accent:#5b6af5;--accent2:#7b87ff;
+  --text:#e8eaf6;--muted:#7b82a8;
+  --success:#22c55e;--error:#ef4444;
+  --radius:10px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
 
-    :root {
-      --bg:        #0f1117;
-      --surface:   #1a1d27;
-      --surface2:  #22263a;
-      --border:    #2e3248;
-      --accent:    #5b6af5;
-      --accent2:   #7b87ff;
-      --text:      #e8eaf6;
-      --muted:     #7b82a8;
-      --success:   #22c55e;
-      --hot:       #ef4444;
-      --warm:      #f97316;
-      --cold:      #3b82f6;
-      --closed:    #22c55e;
-      --radius:    10px;
-    }
+.header{background:linear-gradient(135deg,#1e2240,#151827);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.logo{width:26px;height:26px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.header-title{font-weight:600;font-size:13px;}
+.header-sub{font-size:10px;color:var(--muted);}
+.crm-link{margin-left:auto;font-size:11px;color:var(--accent2);text-decoration:none;}
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 13px;
-      min-height: 100vh;
-      padding: 0;
-    }
+.body{padding:12px;display:flex;flex-direction:column;gap:10px;}
 
-    /* ── Header ── */
-    .header {
-      background: linear-gradient(135deg, #1e2240 0%, #151827 100%);
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .logo {
-      width: 28px; height: 28px;
-      background: var(--accent);
-      border-radius: 7px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; flex-shrink: 0;
-    }
-    .header-title { font-weight: 600; font-size: 14px; color: var(--text); }
-    .header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
-    .crm-link {
-      margin-left: auto;
-      font-size: 11px; color: var(--accent2);
-      text-decoration: none; cursor: pointer;
-      opacity: 0.8;
-    }
-    .crm-link:hover { opacity: 1; }
+.state-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;color:var(--muted);font-size:12px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px;}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-    /* ── Body ── */
-    .body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.contact-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;}
+.contact-row{display:flex;align-items:center;gap:10px;}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#fff;flex-shrink:0;}
+.contact-name{font-weight:600;font-size:14px;}
+.contact-email{font-size:11px;color:var(--muted);margin-top:2px;}
+.contact-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.crm-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(91,106,245,0.15);border:1px solid rgba(91,106,245,0.3);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--accent2);margin-top:6px;cursor:pointer;text-decoration:none;}
 
-    /* ── Loading / Error states ── */
-    .state-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.6;
-    }
-    .spinner {
-      width: 20px; height: 20px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 10px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+.current-tag{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;}
+.tag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 
-    /* ── Contact card ── */
-    .contact-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-    }
-    .contact-row { display: flex; align-items: center; gap: 10px; }
-    .avatar {
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 600; font-size: 13px; color: #fff;
-      flex-shrink: 0;
-    }
-    .contact-name { font-weight: 600; font-size: 14px; }
-    .contact-email { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .contact-company { font-size: 11px; color: var(--muted); }
-    .not-found {
-      font-size: 12px; color: var(--muted);
-      text-align: center; padding: 6px 0;
-    }
+.sec-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.tag-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.tag-btn{padding:9px 6px;border-radius:8px;border:1.5px solid transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;text-align:center;background:var(--surface2);color:var(--text);transition:all .15s;}
+.tag-btn[data-tag="hot_lead"]{border-color:rgba(239,68,68,.3);color:#fca5a5;}
+.tag-btn[data-tag="warm_lead"]{border-color:rgba(249,115,22,.3);color:#fdba74;}
+.tag-btn[data-tag="cold_lead"]{border-color:rgba(59,130,246,.3);color:#93c5fd;}
+.tag-btn[data-tag="deal_closed"]{border-color:rgba(34,197,94,.3);color:#86efac;}
+.tag-btn[data-tag="hot_lead"].selected{background:rgba(239,68,68,.15);border-color:#ef4444;}
+.tag-btn[data-tag="warm_lead"].selected{background:rgba(249,115,22,.15);border-color:#f97316;}
+.tag-btn[data-tag="cold_lead"].selected{background:rgba(59,130,246,.15);border-color:#3b82f6;}
+.tag-btn[data-tag="deal_closed"].selected{background:rgba(34,197,94,.15);border-color:#22c55e;}
 
-    /* ── Current tag ── */
-    .current-tag {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 12px;
-    }
-    .tag-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .current-tag-label { color: var(--muted); }
-    .current-tag-value { font-weight: 500; margin-left: 4px; }
-
-    /* ── Section label ── */
-    .sec-label {
-      font-size: 10px; font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em;
-      margin-bottom: 6px;
-    }
-
-    /* ── Tag buttons ── */
-    .tag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .tag-btn {
-      padding: 10px 8px;
-      border-radius: 8px;
-      border: 1.5px solid transparent;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 12px; font-weight: 500;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s ease;
-      background: var(--surface2);
-      color: var(--text);
-    }
-    .tag-btn:hover { transform: translateY(-1px); }
-
-    .tag-btn[data-tag="hot_lead"]   { border-color: rgba(239,68,68,0.3);  color: #fca5a5; }
-    .tag-btn[data-tag="warm_lead"]  { border-color: rgba(249,115,22,0.3); color: #fdba74; }
-    .tag-btn[data-tag="cold_lead"]  { border-color: rgba(59,130,246,0.3); color: #93c5fd; }
-    .tag-btn[data-tag="deal_closed"]{ border-color: rgba(34,197,94,0.3);  color: #86efac; }
-
-    .tag-btn[data-tag="hot_lead"].selected   { background: rgba(239,68,68,0.15);   border-color: #ef4444;  color: #fca5a5; }
-    .tag-btn[data-tag="warm_lead"].selected  { background: rgba(249,115,22,0.15);  border-color: #f97316; color: #fdba74; }
-    .tag-btn[data-tag="cold_lead"].selected  { background: rgba(59,130,246,0.15);  border-color: #3b82f6; color: #93c5fd; }
-    .tag-btn[data-tag="deal_closed"].selected{ background: rgba(34,197,94,0.15);   border-color: #22c55e; color: #86efac; }
-
-    /* ── Sync button ── */
-    .sync-btn {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background: var(--accent);
-      color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px; font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .sync-btn:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
-    .sync-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; }
-    .sync-btn.success { background: var(--success); }
-    .sync-btn.error-btn { background: #ef4444; }
-
-    /* ── Status text ── */
-    .status-text {
-      font-size: 11px; color: var(--muted);
-      text-align: center; min-height: 16px;
-      line-height: 1.4;
-    }
-
-    /* ── Divider ── */
-    .divider { height: 1px; background: var(--border); margin: 2px 0; }
-  </style>
+.sync-btn{width:100%;padding:9px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.sync-btn:disabled{background:var(--surface2);color:var(--muted);cursor:not-allowed;}
+.sync-btn.success{background:var(--success);}
+.sync-btn.error-btn{background:var(--error);}
+.status-text{font-size:11px;color:var(--muted);text-align:center;min-height:16px;}
+.divider{height:1px;background:var(--border);}
+</style>
 </head>
 <body>
 
 <div class="header">
   <div class="logo">🐦</div>
   <div>
-    <div class="header-title">SuiteCRM</div>
-    <div class="header-sub">Lead Status Sync</div>
+    <div class="header-title">Pigeon CRM</div>
+    <div class="header-sub">SuiteCRM for Outlook</div>
   </div>
   <a class="crm-link" id="crmLink" href="https://crm.pigeon-tech.com" target="_blank">Open CRM ↗</a>
 </div>
 
 <div class="body">
 
-  <!-- Loading state -->
-  <div class="state-box" id="loadingBox">
+  <div id="loadingBox" class="state-box">
     <div class="spinner"></div>
-    Looking up contact...
+    <span id="loadingText">Looking up contact...</span>
   </div>
 
-  <!-- Main UI (hidden until loaded) -->
-  <div id="mainUI" style="display:none; display:flex; flex-direction:column; gap:10px;">
+  <div id="mainUI" style="display:none;flex-direction:column;gap:10px;">
 
-    <!-- Contact card -->
-    <div class="contact-card" id="contactCard">
+    <div class="contact-card">
       <div class="contact-row">
         <div class="avatar" id="avatarEl">?</div>
-        <div>
+        <div style="flex:1;min-width:0;">
           <div class="contact-name" id="contactName">—</div>
           <div class="contact-email" id="contactEmail">—</div>
-          <div class="contact-company" id="contactCompany"></div>
+          <div class="contact-meta" id="contactMeta" style="display:none;"></div>
+          <a class="crm-badge" id="crmLink2" href="https://crm.pigeon-tech.com" target="_blank">↗ View in CRM</a>
         </div>
       </div>
     </div>
 
-    <!-- Not found warning -->
-    <div class="state-box" id="notFoundBox" style="display:none;">
-      ⚠️ Contact not found in SuiteCRM.<br>
-      <span style="font-size:11px;">Make sure their email matches a CRM contact.</span>
+    <div id="notFoundBox" class="state-box" style="display:none;">
+      ⚠ Contact not found in SuiteCRM.<br>
+      <span style="font-size:11px;">No contact matches this email address.</span>
     </div>
 
-    <!-- Current tag -->
     <div class="current-tag" id="currentTagBox" style="display:none;">
       <div class="tag-dot" id="currentTagDot" style="background:#7b82a8;"></div>
-      <span class="current-tag-label">Current status:</span>
-      <span class="current-tag-value" id="currentTagValue">None</span>
+      <span style="color:var(--muted);">Current:</span>
+      <span id="currentTagValue" style="font-weight:500;margin-left:4px;">None</span>
     </div>
 
-    <!-- Tag selector -->
-    <div id="tagSection" style="display:none;">
+    <div id="tagSection">
       <div class="sec-label">Set lead status</div>
       <div class="tag-grid">
         <button class="tag-btn" data-tag="hot_lead"    onclick="selectTag(this)">🔥 Hot Lead</button>
@@ -244,20 +113,16 @@
       </div>
     </div>
 
-    <div class="divider" id="divider" style="display:none;"></div>
+    <div class="divider"></div>
 
-    <!-- Sync button + status -->
-    <div id="syncSection" style="display:none; flex-direction:column; gap:6px;">
-      <button class="sync-btn" id="syncBtn" disabled onclick="doSync()">
-        Sync to SuiteCRM
-      </button>
-      <div class="status-text" id="statusText">Select a status above to enable sync</div>
+    <div id="syncSection" style="display:flex;flex-direction:column;gap:6px;">
+      <button class="sync-btn" id="syncBtn" disabled onclick="doSync()">Sync to SuiteCRM</button>
+      <div class="status-text" id="statusText">Select a status above</div>
     </div>
 
   </div>
 </div>
 
-<script src="config.js"></script>
-  <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

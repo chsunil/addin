@@ -2,3 +2,4 @@
 * text=auto
 # disable sync of config.js
 config.js
+manifest.xml
