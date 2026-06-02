@@ -13,11 +13,12 @@
   .crm-link { color: #fff; font-size: 11px; text-decoration: none; opacity: 0.9; }
   .crm-link:hover { opacity: 1; color: #fff; }
   .avatar { width: 40px; height: 40px; border-radius: 50%; background: #0d6efd; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .avatar.unknown { background: #6c757d; }
   .tag-btn { font-size: 12px; }
-  .tag-btn.active { font-weight: 600; }
   .status-text { font-size: 11px; color: #6c757d; }
   .sec-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; margin-bottom: 6px; }
   .contact-meta { font-size: 11px; color: #6c757d; }
+  .not-found-email { font-size: 12px; color: #495057; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -28,7 +29,7 @@
     <div class="fw-semibold">Pigeon CRM</div>
     <small>SuiteCRM for Outlook</small>
   </div>
-  <a class="crm-link ms-auto" id="crmLink" href="https://crm.pigeon-tech.com" target="_blank">Open CRM ↗</a>
+  <a class="crm-link ms-auto" href="https://crm.pigeon-tech.com" target="_blank">Open CRM ↗</a>
 </div>
 
 <div class="p-3 d-flex flex-column gap-3">
@@ -39,10 +40,9 @@
     <div class="text-muted" id="loadingText">Looking up contact...</div>
   </div>
 
-  <!-- Main UI -->
-  <div id="mainUI" style="display:none;" class="d-flex flex-column gap-3">
+  <!-- ── FOUND: Contact exists in CRM ── -->
+  <div id="foundUI" style="display:none;" class="d-flex flex-column gap-3">
 
-    <!-- Contact card -->
     <div class="card border">
       <div class="card-body py-2 px-3">
         <div class="d-flex align-items-center gap-2">
@@ -53,27 +53,22 @@
             <div class="contact-meta text-truncate" id="contactMeta" style="display:none;"></div>
           </div>
         </div>
-        <div class="mt-2">
-          <a class="btn btn-sm btn-outline-primary py-0 px-2" id="crmLink2" href="https://crm.pigeon-tech.com" target="_blank" style="font-size:11px;">↗ View in CRM</a>
+        <div class="mt-2 d-flex gap-2">
+          <a class="btn btn-sm btn-outline-primary py-0 px-2" id="crmLink" href="https://crm.pigeon-tech.com" target="_blank" style="font-size:11px;">↗ View in CRM</a>
         </div>
       </div>
     </div>
 
-    <!-- Not found -->
-    <div id="notFoundBox" class="alert alert-warning py-2 mb-0" style="display:none;font-size:12px;">
-      Contact not found in SuiteCRM. No record matches this email.
-    </div>
-
     <!-- Current tag -->
-    <div id="currentTagBox" class="alert alert-light py-2 mb-0 d-flex align-items-center gap-2" style="display:none;font-size:12px;">
+    <div id="currentTagBox" style="display:none;" class="d-flex align-items-center gap-2 p-2 border rounded bg-light">
+      <span style="font-size:12px;color:#6c757d;">Current status:</span>
       <span class="badge" id="currentTagBadge">—</span>
-      <span class="text-muted">current status</span>
     </div>
 
     <!-- Tag selector -->
-    <div id="tagSection">
+    <div>
       <div class="sec-label">Set lead status</div>
-      <div class="d-grid gap-2" style="grid-template-columns:1fr 1fr;display:grid;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
         <button class="btn btn-outline-danger tag-btn"   data-tag="hot_lead"    onclick="selectTag(this)">🔥 Hot Lead</button>
         <button class="btn btn-outline-warning tag-btn"  data-tag="warm_lead"   onclick="selectTag(this)">☀️ Warm Lead</button>
         <button class="btn btn-outline-primary tag-btn"  data-tag="cold_lead"   onclick="selectTag(this)">❄️ Cold Lead</button>
@@ -83,13 +78,42 @@
 
     <hr class="my-0"/>
 
-    <!-- Sync -->
-    <div id="syncSection" class="d-flex flex-column gap-1">
+    <div class="d-flex flex-column gap-1">
       <button class="btn btn-primary w-100" id="syncBtn" disabled onclick="doSync()">Sync to SuiteCRM</button>
       <div class="status-text text-center" id="statusText">Select a status above</div>
     </div>
 
   </div>
+
+  <!-- ── NOT FOUND: Contact not in CRM ── -->
+  <div id="notFoundUI" style="display:none;" class="d-flex flex-column gap-3">
+
+    <div class="card border">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-center gap-2">
+          <div class="avatar unknown" id="avatarNotFound">?</div>
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="fw-semibold text-truncate text-muted">Unknown sender</div>
+            <div class="not-found-email" id="notFoundEmail">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-warning py-2 mb-0" style="font-size:12px;">
+      This contact is not in SuiteCRM yet.
+    </div>
+
+    <a class="btn btn-success w-100" id="createContactBtn" href="#" target="_blank">
+      + Create Contact in CRM
+    </a>
+
+    <div style="font-size:11px;color:#6c757d;text-align:center;">
+      Opens SuiteCRM with email pre-filled
+    </div>
+
+  </div>
+
 </div>
 
 <script src="app.js"></script>

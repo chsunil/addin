@@ -13,6 +13,20 @@ let contactId   = null;
 let selectedTag = null;
 let senderEmail = null;
 
+const BADGE_CLASSES = {
+  hot_lead:    "bg-danger",
+  warm_lead:   "bg-warning text-dark",
+  cold_lead:   "bg-primary",
+  deal_closed: "bg-success"
+};
+
+const TAG_LABELS = {
+  hot_lead:    "Hot Lead",
+  warm_lead:   "Warm Lead",
+  cold_lead:   "Cold Lead",
+  deal_closed: "Deal Closed"
+};
+
 // ── Boot ──
 Office.onReady(function(info) {
   if (info.host === Office.HostType.Outlook) {
@@ -22,18 +36,15 @@ Office.onReady(function(info) {
 
 // ── Load credentials from CRM server at runtime ──
 async function loadConfig() {
-  try {
-    const resp = await fetch(CRM_BASE + "/addin/config.js");
-    const text = await resp.text();
-    eval(text);
-  } catch(e) {
-    throw new Error("Could not load config from CRM server: " + e.message);
-  }
+  const resp = await fetch(CRM_BASE + "/addin/config.js");
+  if (!resp.ok) throw new Error("Config load failed: " + resp.status);
+  const text = await resp.text();
+  eval(text);
 }
 
 async function init() {
   try {
-    showLoading("Loading config...");
+    showLoading("Loading...");
 
     // 1. Load credentials from CRM server
     await loadConfig();
@@ -42,11 +53,7 @@ async function init() {
 
     // 2. Get sender email
     const item = Office.context.mailbox.item;
-    if (item.from) {
-      senderEmail = item.from.emailAddress;
-    } else if (item.sender) {
-      senderEmail = item.sender.emailAddress;
-    }
+    senderEmail = item.from ? item.from.emailAddress : (item.sender ? item.sender.emailAddress : null);
 
     if (!senderEmail) {
       showError("Could not read sender email.");
@@ -61,11 +68,9 @@ async function init() {
 
     if (!contact) {
       showNotFound(senderEmail);
-      return;
+    } else {
+      showContact(contact);
     }
-
-    // 5. Show contact UI
-    showContact(contact);
 
   } catch (err) {
     showError("Error: " + err.message);
@@ -106,7 +111,7 @@ async function findContact(email) {
       "Accept":        "application/vnd.api+json"
     }
   });
-  if (!resp.ok) throw new Error("Contact lookup failed: " + resp.status);
+  if (!resp.ok) throw new Error("Lookup failed: " + resp.status);
   const data = await resp.json();
   if (!data.data || data.data.length === 0) return null;
 
@@ -133,11 +138,7 @@ async function updateLeadStatus(crmId, status) {
       "Accept":        "application/vnd.api+json"
     },
     body: JSON.stringify({
-      data: {
-        type: "Contacts",
-        id:   crmId,
-        attributes: { lead_status_c: status }
-      }
+      data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
     })
   });
   if (!resp.ok) throw new Error("Update failed: " + resp.status);
@@ -146,79 +147,75 @@ async function updateLeadStatus(crmId, status) {
 
 // ── UI: loading ──
 function showLoading(msg) {
-  document.getElementById("loadingText").textContent = msg || "Looking up contact...";
-  document.getElementById("loadingBox").style.display = "block";
-  document.getElementById("mainUI").style.display = "none";
+  document.getElementById("loadingText").textContent = msg;
+  document.getElementById("loadingBox").style.display  = "block";
+  document.getElementById("foundUI").style.display     = "none";
+  document.getElementById("notFoundUI").style.display  = "none";
 }
 
-// ── UI: show contact ──
+// ── UI: contact found ──
 function showContact(contact) {
   contactId = contact.id;
 
   const initials = ((contact.firstName[0] || "") + (contact.lastName[0] || "")).toUpperCase() || "?";
   document.getElementById("avatarEl").textContent     = initials;
-  document.getElementById("contactName").textContent  = (contact.firstName + " " + contact.lastName).trim() || "Unknown";
+  document.getElementById("contactName").textContent  = (contact.firstName + " " + contact.lastName).trim();
   document.getElementById("contactEmail").textContent = contact.email;
 
-  const metaEl = document.getElementById("contactMeta");
   const parts = [contact.title, contact.company].filter(Boolean);
-  metaEl.textContent = parts.join(" · ");
-  metaEl.style.display = parts.length ? "block" : "none";
+  const metaEl = document.getElementById("contactMeta");
+  if (parts.length) {
+    metaEl.textContent = parts.join(" · ");
+    metaEl.style.display = "block";
+  }
 
   document.getElementById("crmLink").href = CRM_BASE + "/index.php?module=Contacts&action=DetailView&record=" + contact.id;
 
-  const tagColors = { hot_lead:"#ef4444", warm_lead:"#f97316", cold_lead:"#3b82f6", deal_closed:"#22c55e" };
-  const tagLabels = { hot_lead:"Hot Lead", warm_lead:"Warm Lead", cold_lead:"Cold Lead", deal_closed:"Deal Closed" };
-
   if (contact.leadStatus) {
+    const badge = document.getElementById("currentTagBadge");
+    badge.className = "badge " + (BADGE_CLASSES[contact.leadStatus] || "bg-secondary");
+    badge.textContent = TAG_LABELS[contact.leadStatus] || contact.leadStatus;
     document.getElementById("currentTagBox").style.display = "flex";
-    const badgeClasses = { hot_lead:"bg-danger", warm_lead:"bg-warning text-dark", cold_lead:"bg-primary", deal_closed:"bg-success" };
-    document.getElementById("currentTagBadge").className = "badge " + (badgeClasses[contact.leadStatus] || "bg-secondary");
-    document.getElementById("currentTagValue").textContent    = tagLabels[contact.leadStatus] || contact.leadStatus;
+
     const existing = document.querySelector('[data-tag="' + contact.leadStatus + '"]');
     if (existing) {
-      existing.classList.add("selected");
+      existing.classList.add("active");
       selectedTag = contact.leadStatus;
       enableSync();
     }
   }
 
   document.getElementById("loadingBox").style.display = "none";
-  document.getElementById("mainUI").style.display     = "flex";
+  document.getElementById("foundUI").style.display    = "flex";
 }
 
-// ── UI: not found ──
+// ── UI: contact not found ──
 function showNotFound(email) {
-  document.getElementById("avatarEl").textContent     = "?";
-  document.getElementById("contactName").textContent  = "Not in SuiteCRM";
-  document.getElementById("contactEmail").textContent = email;
-  document.getElementById("contactMeta").style.display = "none";
-  document.getElementById("notFoundBox").style.display = "block";
-  document.getElementById("tagSection").style.display  = "none";
-  document.getElementById("syncSection").style.display = "none";
-  document.getElementById("loadingBox").style.display  = "none";
-  document.getElementById("mainUI").style.display      = "flex";
+  document.getElementById("notFoundEmail").textContent = email;
+  document.getElementById("createContactBtn").href =
+    CRM_BASE + "/index.php?module=Contacts&action=EditView&email1=" + encodeURIComponent(email);
+  document.getElementById("loadingBox").style.display   = "none";
+  document.getElementById("notFoundUI").style.display   = "flex";
 }
 
 // ── UI: error ──
 function showError(msg) {
   document.getElementById("loadingBox").innerHTML =
-    '<div style="color:#ef4444;font-size:12px;padding:16px;text-align:center;">⚠ ' + msg + '</div>';
+    '<div class="alert alert-danger py-2" style="font-size:12px;">⚠ ' + msg + '</div>';
 }
 
 // ── Tag selection ──
 function selectTag(el) {
-  document.querySelectorAll(".tag-btn").forEach(b => b.classList.remove("selected"));
-  el.classList.add("selected");
+  document.querySelectorAll(".tag-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
   selectedTag = el.getAttribute("data-tag");
   enableSync();
 }
 
 function enableSync() {
-  const btn = document.getElementById("syncBtn");
-  btn.disabled = false;
-  btn.textContent = "Sync to SuiteCRM";
-  btn.className = "sync-btn";
+  document.getElementById("syncBtn").disabled = false;
+  document.getElementById("syncBtn").textContent = "Sync to SuiteCRM";
+  document.getElementById("syncBtn").className = "btn btn-primary w-100";
   document.getElementById("statusText").textContent = "Ready — click to save";
 }
 
@@ -229,21 +226,22 @@ async function doSync() {
   const status = document.getElementById("statusText");
   btn.disabled    = true;
   btn.textContent = "Syncing...";
-  status.textContent = "Saving...";
+  status.textContent = "Saving to CRM...";
+
   try {
     await updateLeadStatus(contactId, selectedTag);
-    btn.className   = "sync-btn success";
-    btn.textContent = "✓ Synced";
-    status.textContent = "Saved to CRM";
 
-    const tagColors = { hot_lead:"#ef4444", warm_lead:"#f97316", cold_lead:"#3b82f6", deal_closed:"#22c55e" };
-    const tagLabels = { hot_lead:"Hot Lead", warm_lead:"Warm Lead", cold_lead:"Cold Lead", deal_closed:"Deal Closed" };
-    document.getElementById("currentTagBox").style.display    = "flex";
-    const badgeClasses2 = { hot_lead:"bg-danger", warm_lead:"bg-warning text-dark", cold_lead:"bg-primary", deal_closed:"bg-success" };
-    document.getElementById("currentTagBadge").className = "badge " + (badgeClasses2[selectedTag] || "bg-secondary");
-    document.getElementById("currentTagValue").textContent    = tagLabels[selectedTag];
+    btn.className   = "btn btn-success w-100";
+    btn.textContent = "✓ Synced";
+    status.textContent = "Saved successfully";
+
+    const badge = document.getElementById("currentTagBadge");
+    badge.className   = "badge " + (BADGE_CLASSES[selectedTag] || "bg-secondary");
+    badge.textContent = TAG_LABELS[selectedTag];
+    document.getElementById("currentTagBox").style.display = "flex";
+
   } catch(err) {
-    btn.className   = "sync-btn error-btn";
+    btn.className   = "btn btn-danger w-100";
     btn.textContent = "⚠ Failed";
     btn.disabled    = false;
     status.textContent = err.message;
