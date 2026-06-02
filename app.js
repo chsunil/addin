@@ -108,7 +108,7 @@ async function getToken() {
 
 // ── Find contact by email ──
 async function findContact(email) {
-  const url = API_BASE + "/modules/Contacts" +
+  const url = API_BASE + "/module/Contacts" +
     "?filter[operator]=and" +
     "&filter[email1][eq]=" + encodeURIComponent(email) +
     "&fields[Contacts]=id,first_name,last_name,email1,account_name,title,lead_status_c" +
@@ -144,7 +144,7 @@ async function findContact(email) {
 
 // ── Update lead status ──
 async function updateLeadStatus(crmId, status) {
-  const url = API_BASE + "/modules/Contacts/" + crmId;
+  const url = API_BASE + "/module/Contacts/" + crmId;
   const resp = await fetch(url, {
     method: "PATCH",
     headers: {
