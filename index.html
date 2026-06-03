@@ -8,29 +8,22 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <style>
   body { font-size: 13px; background: #fff; }
-  .header { background: #0d6efd; color: #fff; padding: 10px 14px; }
-  .header small { opacity: 0.8; font-size: 11px; }
-  .crm-link { color: #fff; font-size: 11px; text-decoration: none; opacity: 0.9; }
-  .crm-link:hover { opacity: 1; color: #fff; }
   .avatar { width: 40px; height: 40px; border-radius: 50%; background: #0d6efd; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
-  .avatar.unknown { background: #6c757d; }
   .tag-btn { font-size: 12px; }
   .status-text { font-size: 11px; color: #6c757d; }
   .sec-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; margin-bottom: 6px; }
   .contact-meta { font-size: 11px; color: #6c757d; }
-  .not-found-email { font-size: 12px; color: #495057; word-break: break-all; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 4px 0; border-bottom: 1px solid #dee2e6; margin-bottom: 6px; }
+  .section-header span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; }
+  .section-header .toggle-btn { font-size: 10px; color: #adb5bd; }
+  .activity-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 4px 0; border-bottom: 1px solid #f1f3f5; gap: 6px; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-subject { font-size: 11px; color: #212529; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .activity-date { font-size: 10px; color: #adb5bd; flex-shrink: 0; }
+  .note-textarea { font-size: 12px; resize: vertical; min-height: 52px; }
 </style>
 </head>
 <body>
-
-<!-- Header -->
-<!-- <div class="header d-flex align-items-center gap-2">
-  <div>
-    <div class="fw-semibold">Pigeon CRM</div>
-    <small>SuiteCRM for Outlook</small>
-  </div>
-  <a class="crm-link ms-auto" href="https://crm.pigeon-tech.com" target="_blank">Open CRM ↗</a>
-</div> -->
 
 <div class="p-3 d-flex flex-column gap-3">
 
@@ -40,9 +33,10 @@
     <div class="text-muted" id="loadingText">Looking up contact...</div>
   </div>
 
-  <!-- ── FOUND: Contact exists in CRM ── -->
+  <!-- ── FOUND ── -->
   <div id="foundUI" style="display:none;" class="flex-column gap-3">
 
+    <!-- Contact card -->
     <div class="card border">
       <div class="card-body py-2 px-3">
         <div class="d-flex align-items-center gap-2">
@@ -59,13 +53,13 @@
       </div>
     </div>
 
-    <!-- Current tag -->
+    <!-- Current status badge -->
     <div id="currentTagBox" style="display:none;" class="d-flex align-items-center gap-2 p-2 border rounded bg-light">
       <span style="font-size:12px;color:#6c757d;">Current status:</span>
       <span class="badge" id="currentTagBadge">—</span>
     </div>
 
-    <!-- Tag selector -->
+    <!-- Lead status buttons -->
     <div>
       <div class="sec-label">Set lead status</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
@@ -78,14 +72,48 @@
 
     <hr class="my-0"/>
 
+    <!-- Sync button -->
     <div class="d-flex flex-column gap-1">
       <button class="btn btn-primary w-100" id="syncBtn" disabled onclick="doSync()">Sync to SuiteCRM</button>
       <div class="status-text text-center" id="statusText">Select a status above</div>
     </div>
 
+    <hr class="my-0"/>
+
+    <!-- Log email -->
+    <div>
+      <button class="btn btn-outline-secondary btn-sm w-100" id="logEmailBtn" onclick="doLogEmail()">
+        📧 Log This Email to CRM
+      </button>
+    </div>
+
+    <!-- Note input -->
+    <div>
+      <div class="sec-label">Add a note</div>
+      <textarea class="form-control note-textarea" id="noteText" placeholder="Type a note..."></textarea>
+      <div class="mt-1 d-flex justify-content-end">
+        <button class="btn btn-outline-secondary btn-sm" id="logNoteBtn" onclick="doLogNote()">Save Note</button>
+      </div>
+    </div>
+
+    <hr class="my-0"/>
+
+    <!-- Recent activity -->
+    <div>
+      <div class="section-header" onclick="toggleActivity()">
+        <span>Recent Activity</span>
+        <span class="toggle-btn" id="activityToggle">▲</span>
+      </div>
+      <div id="activityBody">
+        <div id="activityList">
+          <div style="font-size:11px;color:#adb5bd;text-align:center;padding:6px 0;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- ── NOT FOUND: Contact not in CRM ── -->
+  <!-- ── NOT FOUND ── -->
   <div id="notFoundUI" style="display:none;" class="flex-column gap-2">
     <a class="btn btn-success w-100" id="createContactBtn" href="#" target="_blank">
       + Create Contact in CRM
@@ -95,7 +123,12 @@
 </div>
 
 <!-- Debug log -->
-<div id="debugBox" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1e1e1e;color:#d4d4d4;font-size:10px;font-family:monospace;padding:6px 8px;max-height:120px;overflow-y:auto;border-top:1px solid #444;white-space:pre-wrap;word-break:break-all;"></div>
+<div id="debugWrap" style="display:none;position:fixed;bottom:0;left:0;right:0;font-family:monospace;font-size:10px;border-top:2px solid #444;">
+  <div onclick="toggleDebug()" style="background:#2d2d2d;color:#aaa;padding:3px 8px;cursor:pointer;user-select:none;">
+    🐛 Debug <span id="debugToggleLabel">▲ hide</span>
+  </div>
+  <div id="debugBox" style="background:#1e1e1e;color:#d4d4d4;padding:6px 8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"></div>
+</div>
 
 <script src="config.js"></script>
 <script src="app.js"></script>

@@ -28,12 +28,21 @@ const TAG_LABELS = {
 };
 
 // ── Debug log ──
+let debugOpen = true;
 function dbg(msg) {
-  const box = document.getElementById("debugBox");
-  if (!box) return;
-  box.style.display = "block";
+  const wrap = document.getElementById("debugWrap");
+  const box  = document.getElementById("debugBox");
+  if (!wrap || !box) return;
+  wrap.style.display = "block";
   box.textContent += "[" + new Date().toLocaleTimeString() + "] " + msg + "\n";
   box.scrollTop = box.scrollHeight;
+}
+function toggleDebug() {
+  const box   = document.getElementById("debugBox");
+  const label = document.getElementById("debugToggleLabel");
+  debugOpen = !debugOpen;
+  box.style.display = debugOpen ? "block" : "none";
+  label.textContent = debugOpen ? "▲ hide" : "▼ show";
 }
 
 // ── Boot ──
@@ -43,30 +52,28 @@ Office.onReady(function(info) {
   }
 });
 
+// ── Init ──
 async function init() {
   try {
     showLoading("Reading email...");
     dbg("init start");
 
-    // 1. Get sender email
     const item = Office.context.mailbox.item;
-    senderEmail = item.from ? item.from.emailAddress : (item.sender ? item.sender.emailAddress : null);
-    dbg("sender: " + senderEmail);
+
+    // Resolve target email — read mode vs compose mode
+    senderEmail = await resolveTargetEmail(item);
+    dbg("target: " + senderEmail);
 
     if (!senderEmail) {
-      showError("Could not read sender email.");
+      showError("Could not read email address.");
       return;
     }
 
-    // 2. Get OAuth token
     showLoading("Authenticating...");
-    dbg("fetching token from: " + TOKEN_URL);
     accessToken = await getToken();
     dbg("token ok");
 
-    // 3. Look up contact
     showLoading("Looking up contact...");
-    dbg("looking up: " + senderEmail);
     const contact = await findContact(senderEmail);
     dbg("contact: " + (contact ? contact.id : "not found"));
 
@@ -74,6 +81,7 @@ async function init() {
       showNotFound(senderEmail);
     } else {
       showContact(contact);
+      loadActivity(contact.id); // async, non-blocking
     }
 
   } catch (err) {
@@ -82,8 +90,38 @@ async function init() {
   }
 }
 
-// ── Get OAuth2 token ──
+// ── Resolve email: read mode uses from/sender, compose uses first To ──
+function resolveTargetEmail(item) {
+  return new Promise((resolve) => {
+    // Read mode
+    if (item.from) { resolve(item.from.emailAddress); return; }
+    if (item.sender) { resolve(item.sender.emailAddress); return; }
+
+    // Compose mode — item.to needs async
+    if (item.to && typeof item.to.getAsync === "function") {
+      item.to.getAsync(function(result) {
+        if (result.status === Office.AsyncResultStatus.Succeeded &&
+            result.value && result.value.length > 0) {
+          resolve(result.value[0].emailAddress);
+        } else {
+          resolve(null);
+        }
+      });
+    } else {
+      resolve(null);
+    }
+  });
+}
+
+// ── Token — fetch with sessionStorage cache ──
 async function getToken() {
+  const cached = sessionStorage.getItem("crm_token");
+  const expiry = parseInt(sessionStorage.getItem("crm_token_expiry") || "0");
+  if (cached && Date.now() < expiry) {
+    dbg("token from cache");
+    return cached;
+  }
+
   let resp;
   try {
     resp = await fetch(TOKEN_URL, {
@@ -103,70 +141,208 @@ async function getToken() {
   if (!resp.ok) throw new Error("Auth failed: " + resp.status);
   const data = await resp.json();
   if (!data.access_token) throw new Error("No token in response");
+
+  const ttl = (data.expires_in || 3600) * 1000;
+  sessionStorage.setItem("crm_token", data.access_token);
+  sessionStorage.setItem("crm_token_expiry", Date.now() + ttl - 60000); // 1min buffer
+  dbg("token fetched, expires in " + Math.round(ttl / 60000) + "m");
   return data.access_token;
+}
+
+// ── V8 API helper ──
+async function apiFetch(path, options = {}) {
+  const url = API_BASE + path;
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      "Authorization": "Bearer " + accessToken,
+      "Content-Type":  "application/vnd.api+json",
+      "Accept":        "application/vnd.api+json",
+      ...(options.headers || {})
+    }
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    dbg("API error " + resp.status + ": " + body.substring(0, 150));
+    throw new Error("API " + resp.status + ": " + path);
+  }
+  return resp.json();
 }
 
 // ── Find contact by email ──
 async function findContact(email) {
-  const url = API_BASE + "/module/Contacts" +
+  const data = await apiFetch(
+    "/module/Contacts" +
     "?filter[operator]=and" +
     "&filter[email1][eq]=" + encodeURIComponent(email) +
     "&fields[Contacts]=id,first_name,last_name,email1,account_name,title,lead_status_c" +
-    "&page[size]=1";
-
-  let resp;
-  try {
-    resp = await fetch(url, {
-      headers: {
-        "Authorization": "Bearer " + accessToken,
-        "Content-Type":  "application/vnd.api+json",
-        "Accept":        "application/vnd.api+json"
-      }
-    });
-  } catch(e) {
-    throw new Error("Contact fetch failed (CORS?): " + e.message);
-  }
-  if (!resp.ok) throw new Error("Lookup failed: " + resp.status);
-  const data = await resp.json();
+    "&page[size]=1"
+  );
   if (!data.data || data.data.length === 0) return null;
-
   const c = data.data[0];
   return {
     id:         c.id,
-    firstName:  c.attributes.first_name   || "",
-    lastName:   c.attributes.last_name    || "",
-    email:      c.attributes.email1       || email,
-    company:    c.attributes.account_name || "",
-    title:      c.attributes.title        || "",
+    firstName:  c.attributes.first_name    || "",
+    lastName:   c.attributes.last_name     || "",
+    email:      c.attributes.email1        || email,
+    company:    c.attributes.account_name  || "",
+    title:      c.attributes.title         || "",
     leadStatus: c.attributes.lead_status_c || null
   };
 }
 
-// ── Update lead status via V8 API ──
+// ── Update lead status ──
 async function updateLeadStatus(crmId, status) {
-  const url = API_BASE + "/module";
-  let resp;
+  await apiFetch("/module", {
+    method: "PATCH",
+    body: JSON.stringify({
+      data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
+    })
+  });
+}
+
+// ── Load recent activity (Notes linked to contact) ──
+async function loadActivity(crmContactId) {
   try {
-    resp = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Authorization": "Bearer " + accessToken,
-        "Content-Type":  "application/vnd.api+json",
-        "Accept":        "application/vnd.api+json"
-      },
+    const data = await apiFetch(
+      "/module/Notes" +
+      "?filter[operator]=and" +
+      "&filter[parent_id][eq]=" + crmContactId +
+      "&filter[parent_type][eq]=Contacts" +
+      "&fields[Notes]=id,name,date_entered,description" +
+      "&page[size]=3" +
+      "&sort=-date_entered"
+    );
+
+    const notes = (data.data || []).map(n => ({
+      subject:     n.attributes.name         || "(no subject)",
+      date:        n.attributes.date_entered || "",
+      description: n.attributes.description  || ""
+    }));
+
+    renderActivity(notes);
+    dbg("activity loaded: " + notes.length + " notes");
+  } catch(e) {
+    dbg("activity load failed: " + e.message);
+    renderActivity([]);
+  }
+}
+
+// ── Log email as Note ──
+async function doLogEmail() {
+  const btn = document.getElementById("logEmailBtn");
+  btn.disabled = true;
+  btn.textContent = "Logging...";
+
+  try {
+    const item    = Office.context.mailbox.item;
+    const subject = item.subject || "(no subject)";
+    const date    = item.dateTimeCreated ? item.dateTimeCreated.toLocaleString() : new Date().toLocaleString();
+    const from    = senderEmail;
+
+    // Get body text async
+    const body = await new Promise((resolve) => {
+      if (item.body && typeof item.body.getAsync === "function") {
+        item.body.getAsync(Office.CoercionType.Text, { asyncContext: null }, (r) => {
+          resolve(r.status === Office.AsyncResultStatus.Succeeded ? r.value.substring(0, 1000) : "");
+        });
+      } else {
+        resolve("");
+      }
+    });
+
+    await apiFetch("/module", {
+      method: "POST",
       body: JSON.stringify({
-        data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
+        data: {
+          type: "Notes",
+          attributes: {
+            name:          "Email: " + subject,
+            parent_type:   "Contacts",
+            parent_id:     contactId,
+            description:   "From: " + from + "\nDate: " + date + "\n\n" + body
+          }
+        }
       })
     });
+
+    btn.className   = "btn btn-success btn-sm w-100";
+    btn.textContent = "✓ Logged";
+    dbg("email logged as note");
+    loadActivity(contactId); // refresh
   } catch(e) {
-    throw new Error("Update fetch failed (CORS?): " + e.message);
+    btn.className   = "btn btn-danger btn-sm w-100";
+    btn.textContent = "⚠ Failed";
+    btn.disabled    = false;
+    dbg("log email error: " + e.message);
   }
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    dbg("PATCH error: " + body.substring(0, 200));
-    throw new Error("Update failed: " + resp.status);
+}
+
+// ── Log manual note ──
+async function doLogNote() {
+  const textarea = document.getElementById("noteText");
+  const btn      = document.getElementById("logNoteBtn");
+  const text     = (textarea.value || "").trim();
+  if (!text) return;
+
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+
+  try {
+    await apiFetch("/module", {
+      method: "POST",
+      body: JSON.stringify({
+        data: {
+          type: "Notes",
+          attributes: {
+            name:        text.substring(0, 80),
+            parent_type: "Contacts",
+            parent_id:   contactId,
+            description: text
+          }
+        }
+      })
+    });
+
+    btn.className   = "btn btn-success btn-sm";
+    btn.textContent = "✓ Saved";
+    textarea.value  = "";
+    dbg("note saved");
+    loadActivity(contactId); // refresh
+    setTimeout(() => {
+      btn.className   = "btn btn-outline-secondary btn-sm";
+      btn.textContent = "Save Note";
+      btn.disabled    = false;
+    }, 2000);
+  } catch(e) {
+    btn.className   = "btn btn-danger btn-sm";
+    btn.textContent = "⚠ Failed";
+    btn.disabled    = false;
+    dbg("log note error: " + e.message);
   }
-  return true;
+}
+
+// ── Render activity feed ──
+function renderActivity(notes) {
+  const list = document.getElementById("activityList");
+  if (!list) return;
+
+  if (notes.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:#adb5bd;text-align:center;padding:6px 0;">No recent notes</div>';
+    return;
+  }
+
+  list.innerHTML = notes.map(n => {
+    const d = n.date ? new Date(n.date).toLocaleDateString() : "";
+    return '<div class="activity-item">' +
+      '<div class="activity-subject">' + escHtml(n.subject) + '</div>' +
+      '<div class="activity-date">' + d + '</div>' +
+      '</div>';
+  }).join("");
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ── UI: loading ──
@@ -193,7 +369,8 @@ function showContact(contact) {
     metaEl.style.display = "block";
   }
 
-  document.getElementById("crmLink").href = CRM_BASE + "/index.php?module=Contacts&action=DetailView&record=" + contact.id;
+  document.getElementById("crmLink").href =
+    CRM_BASE + "/index.php?module=Contacts&action=DetailView&record=" + contact.id;
 
   if (contact.leadStatus) {
     const badge = document.getElementById("currentTagBadge");
@@ -269,4 +446,13 @@ async function doSync() {
     btn.disabled    = false;
     status.textContent = err.message;
   }
+}
+
+// ── Toggle activity section ──
+function toggleActivity() {
+  const body  = document.getElementById("activityBody");
+  const label = document.getElementById("activityToggle");
+  const open  = body.style.display !== "none";
+  body.style.display = open ? "none" : "block";
+  label.textContent  = open ? "▼" : "▲";
 }
