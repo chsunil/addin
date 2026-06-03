@@ -146,7 +146,7 @@ async function findContact(email) {
 async function updateLeadStatus(crmId, status) {
   const url = API_BASE + "/module/Contacts/" + crmId;
   const resp = await fetch(url, {
-    method: "PATCH",
+    method: "PUT",
     headers: {
       "Authorization": "Bearer " + accessToken,
       "Content-Type":  "application/vnd.api+json",
