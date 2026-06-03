@@ -81,7 +81,9 @@ async function init() {
       showNotFound(senderEmail);
     } else {
       showContact(contact);
-      loadActivity(contact.id); // async, non-blocking
+      loadActivity(contact.id);           // async, non-blocking
+      loadEmails(contact.id);             // async, non-blocking
+      if (contact.accountId) loadDeal(contact.accountId); // async, non-blocking
     }
 
   } catch (err) {
@@ -175,7 +177,7 @@ async function findContact(email) {
     "/module/Contacts" +
     "?filter[operator]=and" +
     "&filter[email1][eq]=" + encodeURIComponent(email) +
-    "&fields[Contacts]=id,first_name,last_name,email1,account_name,title,lead_status_c" +
+    "&fields[Contacts]=id,first_name,last_name,email1,account_name,account_id,title,lead_status_c" +
     "&page[size]=1"
   );
   if (!data.data || data.data.length === 0) return null;
@@ -187,7 +189,8 @@ async function findContact(email) {
     email:      c.attributes.email1        || email,
     company:    c.attributes.account_name  || "",
     title:      c.attributes.title         || "",
-    leadStatus: c.attributes.lead_status_c || null
+    leadStatus: c.attributes.lead_status_c || null,
+    accountId:  c.attributes.account_id   || null
   };
 }
 
@@ -226,6 +229,103 @@ async function loadActivity(crmContactId) {
     dbg("activity load failed: " + e.message);
     renderActivity([]);
   }
+}
+
+// ── Load deal value (open opportunities on account) ──
+async function loadDeal(accountId) {
+  try {
+    const data = await apiFetch(
+      "/module/Opportunities" +
+      "?filter[operator]=and" +
+      "&filter[account_id][eq]=" + accountId +
+      "&fields[Opportunities]=id,name,amount,currency_symbol,sales_stage,date_closed" +
+      "&page[size]=3" +
+      "&sort=-amount"
+    );
+    const opps = (data.data || []).filter(o => {
+      const stage = o.attributes.sales_stage || "";
+      return stage !== "Closed Won" && stage !== "Closed Lost";
+    }).map(o => ({
+      name:     o.attributes.name           || "Opportunity",
+      amount:   o.attributes.amount         || 0,
+      symbol:   o.attributes.currency_symbol|| "$",
+      stage:    o.attributes.sales_stage    || "",
+      close:    o.attributes.date_closed    || ""
+    }));
+    renderDeal(opps);
+    dbg("deals loaded: " + opps.length);
+  } catch(e) {
+    dbg("deal load failed: " + e.message);
+    renderDeal([]);
+  }
+}
+
+// ── Load last 3 emails from CRM Emails module ──
+async function loadEmails(crmContactId) {
+  try {
+    const data = await apiFetch(
+      "/module/Emails" +
+      "?filter[operator]=and" +
+      "&filter[parent_id][eq]=" + crmContactId +
+      "&filter[parent_type][eq]=Contacts" +
+      "&fields[Emails]=id,name,date_entered,status" +
+      "&page[size]=3" +
+      "&sort=-date_entered"
+    );
+    const emails = (data.data || []).map(e => ({
+      subject: e.attributes.name         || "(no subject)",
+      date:    e.attributes.date_entered || "",
+      status:  e.attributes.status       || ""
+    }));
+    renderEmails(emails);
+    dbg("emails loaded: " + emails.length);
+  } catch(e) {
+    dbg("emails load failed: " + e.message);
+    renderEmails([]);
+  }
+}
+
+// ── Render deal value ──
+function renderDeal(opps) {
+  const box = document.getElementById("dealBox");
+  if (!box) return;
+  if (opps.length === 0) {
+    box.style.display = "none";
+    return;
+  }
+  const total = opps.reduce((sum, o) => sum + parseFloat(o.amount || 0), 0);
+  const sym   = opps[0].symbol;
+  box.style.display = "flex";
+  document.getElementById("dealTotal").textContent =
+    sym + total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  document.getElementById("dealCount").textContent =
+    opps.length + " open deal" + (opps.length !== 1 ? "s" : "");
+}
+
+// ── Render CRM emails ──
+function renderEmails(emails) {
+  const list = document.getElementById("emailHistoryList");
+  if (!list) return;
+  if (emails.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:#adb5bd;text-align:center;padding:6px 0;">No email history</div>';
+    return;
+  }
+  list.innerHTML = emails.map(e => {
+    const d = e.date ? new Date(e.date).toLocaleDateString() : "";
+    return '<div class="activity-item">' +
+      '<div class="activity-subject">' + escHtml(e.subject) + '</div>' +
+      '<div class="activity-date">' + d + '</div>' +
+      '</div>';
+  }).join("");
+}
+
+// ── Toggle email history section ──
+function toggleEmails() {
+  const body  = document.getElementById("emailHistoryBody");
+  const label = document.getElementById("emailHistoryToggle");
+  const open  = body.style.display !== "none";
+  body.style.display = open ? "none" : "block";
+  label.textContent  = open ? "▼" : "▲";
 }
 
 // ── Log email as Note ──

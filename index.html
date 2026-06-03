@@ -53,6 +53,15 @@
       </div>
     </div>
 
+    <!-- Deal value -->
+    <div id="dealBox" style="display:none;" class="d-flex align-items-center justify-content-between p-2 border rounded bg-light">
+      <div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">Open Pipeline</div>
+        <div id="dealCount" style="font-size:11px;color:#6c757d;"></div>
+      </div>
+      <div id="dealTotal" style="font-size:18px;font-weight:700;color:#198754;"></div>
+    </div>
+
     <!-- Current status badge -->
     <div id="currentTagBox" style="display:none;" class="d-flex align-items-center gap-2 p-2 border rounded bg-light">
       <span style="font-size:12px;color:#6c757d;">Current status:</span>
@@ -98,14 +107,27 @@
 
     <hr class="my-0"/>
 
-    <!-- Recent activity -->
+    <!-- Recent activity (notes) -->
     <div>
       <div class="section-header" onclick="toggleActivity()">
-        <span>Recent Activity</span>
+        <span>Recent Notes</span>
         <span class="toggle-btn" id="activityToggle">▲</span>
       </div>
       <div id="activityBody">
         <div id="activityList">
+          <div style="font-size:11px;color:#adb5bd;text-align:center;padding:6px 0;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Last 3 emails from CRM -->
+    <div>
+      <div class="section-header" onclick="toggleEmails()">
+        <span>Email History</span>
+        <span class="toggle-btn" id="emailHistoryToggle">▲</span>
+      </div>
+      <div id="emailHistoryBody">
+        <div id="emailHistoryList">
           <div style="font-size:11px;color:#adb5bd;text-align:center;padding:6px 0;">Loading...</div>
         </div>
       </div>
