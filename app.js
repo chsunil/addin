@@ -142,23 +142,28 @@ async function findContact(email) {
   };
 }
 
-// ── Update lead status ──
+// ── Update lead status via V8 API ──
 async function updateLeadStatus(crmId, status) {
-  const url = API_BASE + "/module/Contacts/" + crmId;
-  const resp = await fetch(url, {
-    method: "PUT",
-    headers: {
-      "Authorization": "Bearer " + accessToken,
-      "Content-Type":  "application/vnd.api+json",
-      "Accept":        "application/vnd.api+json"
-    },
-    body: JSON.stringify({
-      data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
-    })
-  });
+  const url = API_BASE + "/module";
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Authorization": "Bearer " + accessToken,
+        "Content-Type":  "application/vnd.api+json",
+        "Accept":        "application/vnd.api+json"
+      },
+      body: JSON.stringify({
+        data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
+      })
+    });
+  } catch(e) {
+    throw new Error("Update fetch failed (CORS?): " + e.message);
+  }
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
-    dbg("PATCH body: " + body.substring(0, 200));
+    dbg("PATCH error: " + body.substring(0, 200));
     throw new Error("Update failed: " + resp.status);
   }
   return true;
