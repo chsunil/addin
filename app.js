@@ -156,7 +156,11 @@ async function updateLeadStatus(crmId, status) {
       data: { type: "Contacts", id: crmId, attributes: { lead_status_c: status } }
     })
   });
-  if (!resp.ok) throw new Error("Update failed: " + resp.status);
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    dbg("PATCH body: " + body.substring(0, 200));
+    throw new Error("Update failed: " + resp.status);
+  }
   return true;
 }
 
@@ -206,11 +210,10 @@ function showContact(contact) {
 
 // ── UI: contact not found ──
 function showNotFound(email) {
-  document.getElementById("notFoundEmail").textContent = email;
   document.getElementById("createContactBtn").href =
     CRM_BASE + "/index.php?module=Contacts&action=EditView&email1=" + encodeURIComponent(email);
-  document.getElementById("loadingBox").style.display   = "none";
-  document.getElementById("notFoundUI").style.display   = "flex";
+  document.getElementById("loadingBox").style.display = "none";
+  document.getElementById("notFoundUI").style.display = "flex";
 }
 
 // ── UI: error ──
